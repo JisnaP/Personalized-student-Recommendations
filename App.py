@@ -1,6 +1,7 @@
-from flask import Flask
+from flask import Flask,request, jsonify
 import requests
 import pandas as pd
+from src.utils import process_quiz_records
 from Data.datapreprocessing import pretty_print, save_json_to_file
 from src.recommendation import train_improvement_model, suggest_improvements_ml
 from sklearn.ensemble import RandomForestClassifier
@@ -23,51 +24,92 @@ try:
     # pretty_print(data)
 
     # Save the JSON data to a file
-    save_json_to_file(data, "../Data/fetched_data.json")
+    save_json_to_file(data, "..\\PERSONALIZED-STUDENT-RECOMMENDATIONS\\Data\\fetched_data.json")
 
 except requests.exceptions.RequestException as e:
     print(f"An error occurred while fetching the JSON data: {e}")
 
-# Process the data into a DataFrame
-records = []
-if data:
-    for record in data:
-        flat_record = {
-            "user_id": record["user_id"],
-            "submitted_at": record["submitted_at"],
-            "quiz_id": record["quiz_id"],
-            "quiz_title": record["quiz"]["title"],
-            "topic": record["quiz"]["topic"],
-            "difficulty_level": record["quiz"]["difficulty_level"],
-            "total_questions": record["total_questions"],
-            "correct_answers": record["correct_answers"],
-            "incorrect_answers": record["incorrect_answers"],
-            "score": record["score"],
-            "accuracy_percent": float(record["accuracy"].strip(" %")),
-            "negative_marks": float(record["quiz"]["negative_marks"]),
-            "correct_answer_marks": float(record["quiz"]["correct_answer_marks"]),
-            "max_mistake_count": record["quiz"]["max_mistake_count"],
-        }
-        # Calculate derived metrics
-        flat_record["total_score_possible"] = (
-            flat_record["total_questions"] * flat_record["correct_answer_marks"]
-        )
-        flat_record["total_negative_score"] = (
-            flat_record["incorrect_answers"] * flat_record["negative_marks"]
-        )
-        flat_record["performance_gap"] = (
-            flat_record["total_score_possible"] - flat_record["score"]
-        )
-        flat_record["mistakes_allowed_left"] = (
-            flat_record["max_mistake_count"] - flat_record["incorrect_answers"]
-        )
-        records.append(flat_record)
+
+ #process data into a dataframe         
+records = process_quiz_records(data)
 
 # Create a DataFrame
 df = pd.DataFrame(records)
 
 # Save the DataFrame to CSV
-df.to_csv("../Data/student_performance.csv", index=False)
+df.to_csv("..\\PERSONALIZED-STUDENT-RECOMMENDATIONS\\Data\\student_performance.csv", index=False)
+
+json_url_quiz="https://www.jsonkeeper.com/b/LLQT"
+
+# Sample Data (JSON) for quiz
+quiz_data = None
+try:
+    # Fetch the JSON data
+    response = requests.get(json_url_quiz, verify=False)
+    response.raise_for_status()  # Raise an exception for HTTP errors
+    quiz_data = response.json()
+
+    # Pretty-print the fetched JSON data
+    # pretty_print(quiz_data)
+
+    
+    save_json_to_file(data, "..\\PERSONALIZED-STUDENT-RECOMMENDATIONS\\Data\\fetched_quiz_data.json")
+
+except requests.exceptions.RequestException as e:
+    print(f"An error occurred while fetching the JSON data: {e}")
+
+@app.route("/get_quiz_data", methods=["GET"])
+def get_quiz_data():
+    global quiz_data  # Access the global quiz data
+    
+    if not quiz_data:
+        return jsonify({"error": "Quiz data not found"}), 404
+    
+    # Return the quiz data as JSON
+    return jsonify(quiz_data), 200
+
+@app.route('/submit_quiz', methods=['POST'])
+
+def submit_quiz():
+    # Get the student answers from the request data
+    student_answers = request.json.get('answers')
+    quiz_id = request.json.get('quiz_id')
+    topic = request.json.get('topic')
+    max_mistakes = request.json.get('max_mistakes', 15)  # Default mistakes allowed
+
+    correct_answers_count = 0
+    mistakes_left = max_mistakes
+
+    # Calculate the accuracy and mistakes
+    for question, student_answer in zip(quiz_data["quiz"]["questions"], student_answers):
+        correct_option = next((opt for opt in question["options"] if opt["is_correct"]), None)
+        if student_answer == correct_option["id"]:
+            correct_answers_count += 1
+        else:
+            mistakes_left -= 1
+
+    accuracy = (correct_answers_count / len(quiz_data["quiz"]["questions"])) * 100
+
+    # Performance gap can be the difference between the total questions and the number of correct answers
+    performance_gap = len(quiz_data["quiz"]["questions"]) - correct_answers_count
+
+    # Create the response data
+    response_data = {
+        "accuracy": accuracy,
+        "quiz_id": quiz_id,
+        "topic": topic,
+        "performance_gap": performance_gap,
+        "mistakes_allowed_left": mistakes_left
+    }
+
+    # Call to recommender system (this can be an external function or API)
+    # recommendation = recommender_system(response_data)
+
+    # Return the response
+    return jsonify(response_data), 200
+
+
+
 
 @app.route("/", methods=["GET"])
 def index():
