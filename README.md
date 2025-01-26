@@ -1,15 +1,15 @@
 # Personalized-student-Recommendations
  A Python-based solution to analyze quiz performance and provide students with personalized recommendations to improve their preparation.
-Overview
+# Overview
 This Flask-based application generates personalized recommendations for students based on their quiz performance. The app fetches data from a JSON API, preprocesses it, trains a recommendation model, and provides improvement suggestions for students.
 
-Features
+# Features
 Fetches quiz performance data from an external JSON API.
 Processes and structures data into a Pandas DataFrame.
 Trains a machine learning model to generate personalized recommendations.
 Provides suggestions to students for improving their performance.
 RESTful API to interact with the recommendation engine.
-Requirements
+# Requirements
 Python 3.8 or higher
 Flask
 Pandas
