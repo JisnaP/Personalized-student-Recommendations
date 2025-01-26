@@ -36,6 +36,7 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 File Structure
+```markdown
 .
 ├── app.py                      # Main Flask application
 ├── Data/
@@ -50,7 +51,7 @@ File Structure
 │   ├── styles.css              # Static CSS files (optional)
 ├── README.md                   # This file
 ├── requirements.txt            # Dependencies
-
+```
 Usage
 Start the Flask application:
 
