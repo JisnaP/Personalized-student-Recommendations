@@ -119,7 +119,7 @@ def index():
         return "No data available to process."
 
     improvement_model = train_improvement_model(df)
-    row = df.iloc[8]  # Example row
+    row = df.iloc[0]  # Example row
     improvement_suggestion = suggest_improvements_ml(row, improvement_model)
     print(improvement_suggestion)
 
